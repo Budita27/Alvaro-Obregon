@@ -1,0 +1,167 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique user ID" },
+        "displayName": { "type": "string", "description": "User's display name" },
+        "email": { "type": "string", "description": "User's email address" },
+        "photoURL": { "type": "string", "description": "User's profile photo URL" },
+        "level": { "type": "number", "description": "Current trivia level" },
+        "points": { "type": "number", "description": "Total trivia points" },
+        "lives": { "type": "number", "description": "Current lives remaining" },
+        "isVIP": { "type": "boolean", "description": "Whether the user is a VIP member" },
+        "isVerified": { "type": "boolean", "description": "Whether the user is a verified neighbor" },
+        "role": { "type": "string", "enum": ["user", "admin"], "description": "User's role" },
+        "theme": { "type": "string", "enum": ["light", "dark"], "description": "User's preferred theme" },
+        "privacySettings": {
+          "type": "object",
+          "properties": {
+            "showLevel": { "type": "boolean" },
+            "showPoints": { "type": "boolean" },
+            "publicProfile": { "type": "boolean" }
+          }
+        }
+      },
+      "required": ["uid", "displayName", "email"]
+    },
+    "Business": {
+      "title": "Business",
+      "description": "Local business information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "rating": { "type": "number" },
+        "location": { "type": "string" },
+        "image": { "type": "string" },
+        "description": { "type": "string" },
+        "address": { "type": "string" }
+      },
+      "required": ["id", "name", "category"]
+    },
+    "Service": {
+      "title": "Service",
+      "description": "Local service information (e.g., plomería)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "status": { "type": "string" },
+        "distance": { "type": "string" },
+        "icon": { "type": "string" },
+        "color": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "TriviaQuestion": {
+      "title": "TriviaQuestion",
+      "description": "A single trivia question",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "question": { "type": "string" },
+        "options": { "type": "array", "items": { "type": "string" } },
+        "correctAnswer": { "type": "number" },
+        "level": { "type": "number" }
+      },
+      "required": ["id", "question", "options", "correctAnswer"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Chat message",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "senderId", "receiverId", "text", "timestamp"]
+    },
+    "Report": {
+      "title": "Report",
+      "description": "Security/incident report",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string" },
+        "status": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "title", "description", "timestamp"]
+    },
+    "TransportUnit": {
+      "title": "TransportUnit",
+      "description": "Live location of a transport unit (bus, metro)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["bus", "metro"] },
+        "line": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "heading": { "type": "number" },
+        "status": { "type": "string" },
+        "lastUpdate": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "type", "lat", "lng", "lastUpdate"]
+    },
+    "SavedRoute": {
+      "title": "SavedRoute",
+      "description": "A user's saved transport route",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["bus", "metro"] },
+        "line": { "type": "string" },
+        "name": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "type", "line", "name", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profile documents"
+    },
+    "users/{userId}/saved_routes/{routeId}": {
+      "schema": "SavedRoute",
+      "description": "User's saved transport routes"
+    },
+    "businesses": {
+      "schema": "Business",
+      "description": "Collection of local businesses"
+    },
+    "services": {
+      "schema": "Service",
+      "description": "Collection of local services"
+    },
+    "trivia_questions": {
+      "schema": "TriviaQuestion",
+      "description": "Collection of trivia questions"
+    },
+    "messages": {
+      "schema": "Message",
+      "description": "Collection of chat messages"
+    },
+    "reports": {
+      "schema": "Report",
+      "description": "Collection of incident reports"
+    },
+    "transport_units": {
+      "schema": "TransportUnit",
+      "description": "Real-time transport locations"
+    }
+  }
+}

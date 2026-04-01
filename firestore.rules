@@ -1,0 +1,257 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - uid: string (required, immutable) - Unique user ID
+    //   - displayName: string (required) - User's display name
+    //   - email: string (required) - User's email address
+    //   - photoURL: string (optional) - User's profile photo URL
+    //   - level: number (optional) - Current trivia level
+    //   - points: number (optional) - Total trivia points
+    //   - lives: number (optional) - Current lives remaining
+    //   - isVIP: bool (optional) - Whether the user is a VIP member
+    //   - isVerified: bool (optional) - Whether the user is a verified neighbor
+    //   - role: string (optional, enum: ['user', 'admin']) - User's role
+    //
+    // Collection: businesses
+    // Document ID: auto-generated
+    // Fields:
+    //   - id: string (required)
+    //   - name: string (required)
+    //   - category: string (required)
+    //   - rating: number (optional)
+    //   - location: string (optional)
+    //   - image: string (optional)
+    //   - description: string (optional)
+    //   - address: string (optional)
+    //
+    // Collection: services
+    // Document ID: auto-generated
+    // Fields:
+    //   - id: string (required)
+    //   - name: string (required)
+    //   - category: string (required)
+    //   - status: string (optional)
+    //   - distance: string (optional)
+    //   - icon: string (optional)
+    //   - color: string (optional)
+    //
+    // Collection: trivia_questions
+    // Document ID: auto-generated
+    // Fields:
+    //   - id: string (required)
+    //   - question: string (required)
+    //   - options: list (required)
+    //   - correctAnswer: number (required)
+    //   - level: number (optional)
+    //
+    // Collection: messages
+    // Document ID: auto-generated
+    // Fields:
+    //   - id: string (required)
+    //   - senderId: string (required)
+    //   - receiverId: string (required)
+    //   - text: string (required)
+    //   - timestamp: string (required, format: date-time)
+    //
+    // Collection: reports
+    // Document ID: auto-generated
+    // Fields:
+    //   - id: string (required)
+    //   - userId: string (required)
+    //   - title: string (required)
+    //   - description: string (required)
+    //   - type: string (optional)
+    //   - status: string (optional)
+    //   - timestamp: string (required, format: date-time)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "laschonchasaguasfrescas@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string &&
+        email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string &&
+        dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    function isValidUrl(url) {
+      return url is string &&
+        (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    function validStringLength(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+        request.resource.data[field].size() >= minLen &&
+        request.resource.data[field].size() <= maxLen;
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasRequiredFields(['uid', 'displayName', 'email']) &&
+             hasOnlyAllowedFields(['uid', 'displayName', 'email', 'photoURL', 'level', 'points', 'lives', 'isVIP', 'isVerified', 'role', 'privacySettings', 'theme']) &&
+             data.uid is string && data.uid.size() > 0 &&
+             data.displayName is string && data.displayName.size() > 0 && data.displayName.size() < 100 &&
+             isValidEmail(data.email) &&
+             (!('photoURL' in data) || isValidUrl(data.photoURL)) &&
+             (!('level' in data) || data.level is number) &&
+             (!('points' in data) || data.points is number) &&
+             (!('lives' in data) || data.lives is number) &&
+             (!('isVIP' in data) || data.isVIP is bool) &&
+             (!('isVerified' in data) || data.isVerified is bool) &&
+             (!('role' in data) || data.role in ['user', 'admin']) &&
+             (!('theme' in data) || data.theme in ['light', 'dark']) &&
+             (!('privacySettings' in data) || (
+               data.privacySettings is map &&
+               data.privacySettings.keys().hasOnly(['showLevel', 'showPoints', 'publicProfile']) &&
+               (!('showLevel' in data.privacySettings) || data.privacySettings.showLevel is bool) &&
+               (!('showPoints' in data.privacySettings) || data.privacySettings.showPoints is bool) &&
+               (!('publicProfile' in data.privacySettings) || data.privacySettings.publicProfile is bool)
+             ));
+    }
+
+    function isValidBusiness(data) {
+      return hasRequiredFields(['id', 'name', 'category']) &&
+             data.id is string && data.name is string && data.category is string &&
+             data.name.size() < 100 &&
+             (!('rating' in data) || data.rating is number) &&
+             (!('image' in data) || isValidUrl(data.image));
+    }
+
+    function isValidService(data) {
+      return hasRequiredFields(['id', 'name', 'category']) &&
+             data.id is string && data.name is string && data.category is string;
+    }
+
+    function isValidTriviaQuestion(data) {
+      return hasRequiredFields(['id', 'question', 'options', 'correctAnswer']) &&
+             data.id is string && data.question is string && data.options is list && data.correctAnswer is number;
+    }
+
+    function isValidMessage(data) {
+      return hasRequiredFields(['id', 'senderId', 'receiverId', 'text', 'timestamp']) &&
+             data.id is string && data.senderId is string && data.receiverId is string &&
+             data.text is string && data.text.size() < 1000 &&
+             isValidDateString(data.timestamp);
+    }
+
+    function isValidReport(data) {
+      return hasRequiredFields(['id', 'userId', 'title', 'description', 'timestamp']) &&
+             data.id is string && data.userId is string && data.title is string &&
+             data.description is string && data.description.size() < 2000 &&
+             isValidDateString(data.timestamp);
+    }
+
+    function isValidTransportUnit(data) {
+      return hasRequiredFields(['id', 'type', 'lat', 'lng', 'lastUpdate']) &&
+             data.id is string && data.type in ['bus', 'metro'] &&
+             data.lat is number && data.lng is number &&
+             isValidDateString(data.lastUpdate);
+    }
+
+    function isValidSavedRoute(data) {
+      return hasRequiredFields(['id', 'userId', 'type', 'line', 'name', 'createdAt']) &&
+             hasOnlyAllowedFields(['id', 'userId', 'type', 'line', 'name', 'createdAt']) &&
+             data.id is string && data.userId is string &&
+             data.type in ['bus', 'metro'] &&
+             data.line is string && data.name is string &&
+             isValidDateString(data.createdAt);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && 
+                      ((isOwner(userId) && request.resource.data.role == 'user') || isAdmin());
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && 
+                      ((isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /businesses/{businessId} {
+      allow read: if true; // Publicly readable
+      allow write: if isAdmin();
+    }
+
+    match /services/{serviceId} {
+      allow read: if true; // Publicly readable
+      allow write: if isAdmin();
+    }
+
+    match /trivia_questions/{questionId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.receiverId);
+      allow create: if isAuthenticated() && isValidMessage(request.resource.data) && request.auth.uid == request.resource.data.senderId;
+      allow update, delete: if false; // Messages are immutable
+    }
+
+    match /reports/{reportId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+      allow create: if isAuthenticated() && isValidReport(request.resource.data) && request.auth.uid == request.resource.data.userId;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /transport_units/{unitId} {
+      allow read: if true; // Publicly readable for live map
+      allow write: if isAdmin();
+    }
+
+    match /users/{userId}/saved_routes/{routeId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidSavedRoute(request.resource.data) && request.resource.data.userId == userId;
+      allow update: if false; // Routes are usually deleted and recreated or just deleted
+      allow delete: if isOwner(userId);
+    }
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

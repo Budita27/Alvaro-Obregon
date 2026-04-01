@@ -1,0 +1,5 @@
+{
+  "name": "ÁO Conecta",
+  "description": "Plataforma comunitaria para los vecinos de Álvaro Obregón, CDMX. Conecta con negocios locales, servicios ciudadanos, transporte en tiempo real y juegos interactivos.",
+  "requestFramePermissions": ["geolocation", "camera", "microphone"]
+}
